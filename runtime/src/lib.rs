@@ -291,7 +291,7 @@ impl pallet_oracle::Trait for Runtime {
 /// Configure the pallet template in pallets/template.
 impl template::Trait for Runtime {
     type Event = Event;
-    type WhatIWantFromOracle = pallet_oracle::PrimitiveOracleType;
+    type WhatIWantFromOracle = pallet_oracle::DataType;
 }
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime where
     Call: From<LocalCall>,

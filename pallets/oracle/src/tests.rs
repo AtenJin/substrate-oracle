@@ -74,7 +74,7 @@ impl frame_system::Trait for Test {
 
 impl pallet_template::Trait for Test {
 	type Event = TestEvent;
-	type WhatIWantFromOracle = super::PrimitiveOracleType;
+	type WhatIWantFromOracle = super::DataType;
 }
 
 type Extrinsic = TestXt<Call<Test>, ()>;
@@ -175,7 +175,7 @@ fn should_submit_signed_data_on_chain() {
 		assert_eq!(tx.signature.unwrap().0, 0);
 		assert_eq!(tx.call, Call::feed_data(
 			<pallet_template::Something2<Test>>::hashed_key().to_vec(),
-			super::PrimitiveOracleType::FixedU128(FixedU128::from((156, 100)))
+			super::DataType::FixedU128(FixedU128::from((156, 100)))
 		));
 		let (k, data) = match tx.call {
 			Call::feed_data(a, b) => (a, b),

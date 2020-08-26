@@ -90,38 +90,38 @@ pub enum Operations {
 
 /// A "generic" numeric data type, which can be used in other pallets
 /// as a storage value. `lite_json:json::NumberValue` can be converted into
-/// PrimitiveOracleType with helper functions.
+/// DataType with helper functions.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Encode, Decode, RuntimeDebug)]
-pub enum PrimitiveOracleType {
+pub enum DataType {
 	/// unsigned
     U128(u128),
     FixedU128(FixedU128),
 }
 
-impl From<u128> for PrimitiveOracleType {
+impl From<u128> for DataType {
     fn from(n: u128) -> Self {
-        PrimitiveOracleType::U128(n)
+        DataType::U128(n)
     }
 }
 
-impl From<FixedU128> for PrimitiveOracleType {
+impl From<FixedU128> for DataType {
     fn from(f: FixedU128) -> Self {
-        PrimitiveOracleType::FixedU128(f)
+        DataType::FixedU128(f)
     }
 }
 
 
-impl PrimitiveOracleType {
+impl DataType {
     pub fn number_type(&self) -> NumberType {
         match self {
-            PrimitiveOracleType::U128(_) => NumberType::U128,
-            PrimitiveOracleType::FixedU128(_) => NumberType::FixedU128,
+            DataType::U128(_) => NumberType::U128,
+            DataType::FixedU128(_) => NumberType::FixedU128,
         }
     }
 
     pub fn into_fixed_u128(self) -> Option<FixedU128> {
         match self {
-            PrimitiveOracleType::FixedU128(f) => Some(f),
+            DataType::FixedU128(f) => Some(f),
             _ => None,
         }
 
@@ -133,7 +133,7 @@ impl PrimitiveOracleType {
                 if val.integer < 0 {
                     return None;
                 }
-                Some(PrimitiveOracleType::U128(val.integer as u128))
+                Some(DataType::U128(val.integer as u128))
             }
             NumberType::FixedU128 => {
                 if val.integer < 0 {
@@ -158,22 +158,22 @@ impl PrimitiveOracleType {
                     (n, d)
                 };
                 let res = FixedU128::from((n, d));
-                Some(PrimitiveOracleType::FixedU128(res))
+                Some(DataType::FixedU128(res))
             }
         }
     }
 }
 
-/// Types of PrimitiveOracleType
+/// Types of DataType
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Encode, Decode, RuntimeDebug)]
 pub enum NumberType {
     U128,
     FixedU128,
 }
 
-impl Default for PrimitiveOracleType {
+impl Default for DataType {
     fn default() -> Self {
-        PrimitiveOracleType::U128(0)
+        DataType::U128(0)
     }
 }
 
@@ -204,15 +204,15 @@ use frame_support::traits::{Contains, EnsureOrigin};
 use sp_runtime::traits::{CheckedDiv, Saturating};
 use sp_std::{marker::PhantomData, prelude::*};
 
-pub struct DataFeedGet<Key: Get<[u8; 32]>, Value: Get<PrimitiveOracleType>>(
+pub struct DataFeedGet<Key: Get<[u8; 32]>, Value: Get<DataType>>(
     PhantomData<Key>,
     PhantomData<Value>,
 );
 
-impl<Key: Get<[u8; 32]>, Value: Get<PrimitiveOracleType>> Get<PrimitiveOracleType>
+impl<Key: Get<[u8; 32]>, Value: Get<DataType>> Get<DataType>
     for DataFeedGet<Key, Value>
 {
-    fn get() -> PrimitiveOracleType {
+    fn get() -> DataType {
         frame_support::storage::unhashed::get_or(Key::get().as_ref(), Value::get())
     }
 }
@@ -233,7 +233,7 @@ decl_event!(
     where
         AccountId = <T as frame_system::Trait>::AccountId,
     {   /// New data stored on blokchain
-        NewData(AccountId, StorageKey, PrimitiveOracleType),
+        NewData(AccountId, StorageKey, DataType),
     }
 );
 
@@ -274,7 +274,7 @@ decl_storage! {
         pub Url get(fn url): map hasher(twox_64_concat) StorageKey => Option<Vec<u8>>;
 
         pub DataFeeds get(fn feeded_data): double_map hasher(blake2_128_concat) StorageKey,
-            hasher(blake2_128_concat) T::AccountId => Option<[PrimitiveOracleType; RING_BUF_LEN]>;
+            hasher(blake2_128_concat) T::AccountId => Option<[DataType; RING_BUF_LEN]>;
     }
 }
 
@@ -329,7 +329,7 @@ decl_module! {
 
         /// Submit a new data under the specific storage key.
         #[weight = 0]
-        pub fn feed_data(origin, key: StorageKey, value: PrimitiveOracleType) -> DispatchResult {
+        pub fn feed_data(origin, key: StorageKey, value: DataType) -> DispatchResult {
             let who = ensure_signed(origin)?;
             Self::feed_data_impl(who, key, value)
         }
@@ -384,7 +384,7 @@ impl<T: Trait> Module<T> {
     fn feed_data_impl(
         who: T::AccountId,
         key: StorageKey,
-        value: PrimitiveOracleType,
+        value: DataType,
     ) -> DispatchResult {
         if !Self::all_keys().contains(&key) {
             Err(Error::<T>::InvalidKey)?
@@ -460,7 +460,7 @@ impl<T: Trait> Module<T> {
 
     fn calc(key: StorageKey, info: Info<T::BlockNumber>) {
         // calc result would drain all old data
-        let data: Vec<PrimitiveOracleType> =
+        let data: Vec<DataType> =
             DataFeeds::<T>::drain_prefix(&key).fold(Vec::new(), |mut src, (who, datas)| {
                 // filter if account not in providers now
                 if Self::all_providers().contains(&who) {
@@ -477,23 +477,23 @@ impl<T: Trait> Module<T> {
             NumberType::U128 => {
                 let numbers = data
                     .into_iter()
-                    .filter_map(|num: PrimitiveOracleType| match num {
-                        PrimitiveOracleType::U128(a) => Some(a),
-                        PrimitiveOracleType::FixedU128(_) => None,
+                    .filter_map(|num: DataType| match num {
+                        DataType::U128(a) => Some(a),
+                        DataType::FixedU128(_) => None,
                     })
                     .collect::<Vec<u128>>();
 
                 let res: u128 =
                     Self::calc_impl(&numbers, 0_u128, |len| len as u128, info.operation);
-                // PrimitiveOracleType::from_u32_value(res, info.number_type)
-                PrimitiveOracleType::U128(res)
+                // DataType::from_u32_value(res, info.number_type)
+                DataType::U128(res)
             }
             NumberType::FixedU128 => {
                 let numbers = data
                     .into_iter()
-                    .filter_map(|num: PrimitiveOracleType| match num {
-                        PrimitiveOracleType::U128(_) => None,
-                        PrimitiveOracleType::FixedU128(a) => Some(a),
+                    .filter_map(|num: DataType| match num {
+                        DataType::U128(_) => None,
+                        DataType::FixedU128(a) => Some(a),
                     })
                     .collect::<Vec<FixedU128>>();
 
@@ -503,18 +503,18 @@ impl<T: Trait> Module<T> {
                     |len| FixedU128::from(len as u128),
                     info.operation,
                 );
-                PrimitiveOracleType::FixedU128(res)
+                DataType::FixedU128(res)
             }
         };
 
         Self::set_storage_value(key, result);
     }
 
-    fn set_storage_value(key: Vec<u8>, value: PrimitiveOracleType) {
+    fn set_storage_value(key: Vec<u8>, value: DataType) {
         frame_support::storage::unhashed::put(&key, &value);
     }
 
-    fn fetch_data(storage_key: &StorageKey) -> Result<PrimitiveOracleType, &'static str> {
+    fn fetch_data(storage_key: &StorageKey) -> Result<DataType, &'static str> {
         // We want to keep the offchain worker execution time reasonable, so we set a hard-coded
         // deadline to 2s to complete the external call.
         // You can also wait idefinitely for the response, however you may still get a timeout
@@ -571,7 +571,7 @@ impl<T: Trait> Module<T> {
         key_str: Chars,
         number_type: NumberType,
         data: &str,
-    ) -> Option<PrimitiveOracleType> {
+    ) -> Option<DataType> {
         let mut key_str = key_str;
         let val = lite_json::parse_json(data);
         let output = val.ok().and_then(|v| match v {
@@ -585,6 +585,6 @@ impl<T: Trait> Module<T> {
             _ => None,
         })?;
 
-        PrimitiveOracleType::from_number_value(output, number_type)
+        DataType::from_number_value(output, number_type)
     }
 }
